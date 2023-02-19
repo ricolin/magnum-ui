@@ -17,6 +17,8 @@ import re
 
 from collections import defaultdict
 
+from oslo_utils import uuidutils
+
 from django.conf import settings
 from django.http import HttpResponse
 from django.http import HttpResponseNotFound
@@ -217,6 +219,19 @@ class ClusterResize(generic.View):
 
     url_regex = r'container_infra/clusters/(?P<cluster_id>[^/]+)/resize$'
 
+    def _cluster_api_resize_get(self, request, cluster):
+        search_opts = {"name": "%s-" % cluster["stack_id"]}
+        servers = api.nova.server_list(request, search_opts=search_opts)[0]
+
+        worker_nodes = []
+        for server in servers:
+            control_plane_prefix = "%s-control-plane" % cluster["stack_id"]
+            if not server.name.startswith(control_plane_prefix):
+                worker_nodes.append({"name": server.name, "id": server.id})
+
+        return {"cluster": change_to_id(cluster),
+                "worker_nodes": worker_nodes}
+
     @rest_utils.ajax()
     def get(self, request, cluster_id):
         """Get cluster details for resize"""
@@ -225,6 +240,9 @@ class ClusterResize(generic.View):
         except AttributeError as e:
             print(e)
             return HttpResponseNotFound()
+
+        if not uuidutils.is_uuid_like(cluster["stack_id"]):
+            return self._cluster_api_resize_get(request, cluster)
 
         stack = heat.stack_get(request, cluster["stack_id"])
         search_opts = {"name": "%s-" % stack.stack_name}
