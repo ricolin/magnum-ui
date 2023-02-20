@@ -19,16 +19,17 @@
 
   describe('horizon.dashboard.container-infra.clusters.resize.service', function() {
 
-    var service, $scope, $q, deferred, magnum, spinnerModal, modalConfig;
+    var service, $scope, $q, deferred, magnum, spinnerModal, modalConfig, userSession;
     var selected = {
-      id: 1
+      id: 1,
+      project_id: "f5ed2d21437644adb2669f9ade9c949b"
     };
     var modal = {
       open: function(config) {
         deferred = $q.defer();
         deferred.resolve(config);
         modalConfig = config;
-
+``
         return deferred.promise;
       }
     };
@@ -50,6 +51,7 @@
         'horizon.dashboard.container-infra.clusters.resize.service');
       magnum = $injector.get('horizon.app.core.openstack-service-api.magnum');
       spinnerModal = $injector.get('horizon.framework.widgets.modal-wait-spinner.service');
+      userSession = $injector.get('horizon.app.core.openstack-service-api.userSession');
 
       spyOn(spinnerModal, 'showModalSpinner').and.callFake(function() {});
       spyOn(spinnerModal, 'hideModalSpinner').and.callFake(function() {});
@@ -60,9 +62,22 @@
       spyOn(modal, 'open').and.callThrough();
     }));
 
-    it('should check the policy if the user is allowed to update cluster', function() {
-      var allowed = service.allowed();
-      expect(allowed).toBeTruthy();
+    it('should allow user to resize cluster if they are in the same project', async function() {
+      spyOn(userSession, 'get').and.returnValue({project_id: selected.project_id});
+
+      await service.allowed(selected);
+    });
+
+    it('should not allow user to resize cluster if they are in a different project', async function() {
+      spyOn(userSession, 'get').and.returnValue({project_id: 'different_project'});
+
+      try {
+        await service.allowed(selected);
+      } catch (err) {
+        return;
+      }
+
+      throw new Error('User should not be allowed to resize cluster');
     });
 
     it('should open the modal, hide the loading spinner and check the form model',
