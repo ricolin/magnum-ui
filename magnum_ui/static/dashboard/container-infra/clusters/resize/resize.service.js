@@ -32,6 +32,7 @@
   resizeService.$inject = [
     '$rootScope',
     '$q',
+    'horizon.app.core.openstack-service-api.userSession',
     'horizon.app.core.openstack-service-api.magnum',
     'horizon.framework.util.actions.action-result.service',
     'horizon.framework.util.i18n.gettext',
@@ -43,8 +44,8 @@
   ];
 
   function resizeService(
-    $rootScope, $q, magnum, actionResult, gettext, $qExtensions, modal, toast, spinnerModal,
-    resourceType
+    $rootScope, $q, userSession, magnum, actionResult, gettext, $qExtensions,
+    modal, toast, spinnerModal, resourceType
   ) {
 
     var modalConfig, formModel;
@@ -87,8 +88,8 @@
       return deferred.promise;
     }
 
-    function allowed() {
-      return $qExtensions.booleanAsPromise(true);
+    function allowed(selected) {
+      return userSession.isCurrentProject(selected.project_id);
     }
 
     function constructModalConfig(workerNodesList) {
